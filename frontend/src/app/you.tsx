@@ -7,16 +7,17 @@ import { currentStreak, useProgress } from '@/state/progress';
 import { colors, fonts } from '@/theme';
 
 export default function YouScreen() {
-  const { completedDates, xp, resetProgress } = useProgress();
+  const { completedDates, xp, resetProgress, syncMode, syncError } = useProgress();
   return (
     <Screen footer={<BottomNav />}>
       <Text style={styles.wordmark}>nibble</Text>
       <View style={styles.hero}>
-        <Mascot size={95} />
+        <Mascot size={95} waveOnPress />
         <Text style={styles.eyebrow}>YOUR SMALL WINS</Text>
         <Text style={styles.title}>Look how far you’ve come.</Text>
       </View>
       <AccountCard />
+      <Text style={styles.syncNote}>{syncMode === 'cloud' ? 'Your progress is saved to your account.' : syncError ?? 'Progress is saved on this device.'}</Text>
       <View style={styles.stats}>
         <View style={styles.stat}><Text style={styles.value}>{completedDates.length}</Text><Text style={styles.label}>{completedDates.length === 1 ? 'day practiced' : 'days practiced'}</Text></View>
         <View style={styles.stat}><Text style={styles.value}>{currentStreak(completedDates)}</Text><Text style={styles.label}>day streak</Text></View>
@@ -38,6 +39,7 @@ const styles = StyleSheet.create({
   value: { fontFamily: fonts.display, fontSize: 26, color: colors.green },
   label: { fontFamily: fonts.regular, fontSize: 11, color: colors.muted, marginTop: 4 },
   note: { fontFamily: fonts.regular, fontSize: 14, lineHeight: 21, color: colors.muted, textAlign: 'center', marginTop: 27 },
+  syncNote: { fontFamily: fonts.medium, fontSize: 11, color: colors.muted, textAlign: 'center', marginTop: 10 },
   reset: { alignSelf: 'center', padding: 13, marginTop: 24 },
   resetText: { fontFamily: fonts.semiBold, fontSize: 12, color: colors.muted, textDecorationLine: 'underline' },
 });

@@ -3,6 +3,12 @@
   "private": true,
   "version": "1.0.0",
   "type": "module",
-  "scripts": { "start": "node --env-file=.env index.mjs" },
-  "dependencies": { "@google/genai": "^3.6.1" }
+  "scripts": {
+    "start": "node --env-file=.env index.mjs"
+  },
+  "dependencies": {
+    "@google/genai": "^3.6.1",
+    "jose": "^6.2.18",
+    "pg": "^8.23.1"
+  }
 }

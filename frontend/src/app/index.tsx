@@ -37,7 +37,7 @@ export default function TodayScreen() {
           <Text style={styles.eyebrow}>SMALL STEPS. REAL SKILLS.</Text>
           <Text style={styles.title}>A little practice.{'\n'}A lot less scary.</Text>
         </View>
-        <View style={styles.mascot}><Mascot size={112} /></View>
+        <View style={styles.mascot}><Mascot size={112} waveOnPress /></View>
         <Text style={styles.introCopy}>No perfect starting point needed.{'\n'}Just you, five minutes, and one small win.</Text>
       </View>
 

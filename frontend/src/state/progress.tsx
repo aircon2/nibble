@@ -1,35 +1,21 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createContext, useContext, useEffect, useMemo, useState } from 'react';
+import { localDateKey } from './progress-utils';
+
+export { currentStreak, localDateKey } from './progress-utils';
 
 const STORAGE_KEY = 'nibble-progress-v1';
 
 type Progress = { completedDates: string[]; completedLessons: string[]; xp: number };
 type ProgressContextValue = Progress & {
   ready: boolean;
+  syncMode: 'device' | 'cloud';
+  syncError: string | null;
   completeLesson: (lessonId: string) => Promise<number>;
   resetProgress: () => Promise<void>;
 };
 
 const ProgressContext = createContext<ProgressContextValue | null>(null);
-
-export function localDateKey(date = new Date()): string {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  const day = String(date.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
-}
-
-export function currentStreak(dates: string[], today = new Date()): number {
-  const completed = new Set(dates);
-  const cursor = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-  if (!completed.has(localDateKey(cursor))) cursor.setDate(cursor.getDate() - 1);
-  let count = 0;
-  while (completed.has(localDateKey(cursor))) {
-    count += 1;
-    cursor.setDate(cursor.getDate() - 1);
-  }
-  return count;
-}
 
 export function ProgressProvider({ children }: { children: React.ReactNode }) {
   const [progress, setProgress] = useState<Progress>({ completedDates: [], completedLessons: [], xp: 0 });
@@ -58,14 +44,16 @@ export function ProgressProvider({ children }: { children: React.ReactNode }) {
   const value = useMemo<ProgressContextValue>(() => ({
     ...progress,
     ready,
+    syncMode: 'device',
+    syncError: null,
     async completeLesson(lessonId: string) {
-      if (progress.completedLessons.includes(lessonId)) return 0;
+      const firstTime = !progress.completedLessons.includes(lessonId);
       const today = localDateKey();
       const dates = progress.completedDates.includes(today) ? progress.completedDates : [...progress.completedDates, today].sort();
-      const next = { completedDates: dates, completedLessons: [...progress.completedLessons, lessonId], xp: progress.xp + 20 };
+      const next = { completedDates: dates, completedLessons: firstTime ? [...progress.completedLessons, lessonId] : progress.completedLessons, xp: progress.xp + (firstTime ? 20 : 0) };
       setProgress(next);
       await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(next));
-      return 20;
+      return firstTime ? 20 : 0;
     },
     async resetProgress() {
       const empty = { completedDates: [], completedLessons: [], xp: 0 };

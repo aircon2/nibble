@@ -1,5 +1,6 @@
 import { createServer } from 'node:http';
 import { GoogleGenAI } from '@google/genai';
+import { handleProgress, initializeProgressStore } from './progress.mjs';
 
 const port = Number(process.env.HINT_PORT ?? 8787);
 const model = process.env.GEMINI_MODEL || 'gemini-3.5-flash-lite';
@@ -32,6 +33,7 @@ function respond(response, status, data) {
 }
 
 createServer(async (request, response) => {
+  if (await handleProgress(request, response)) return;
   if (request.method === 'OPTIONS') return respond(response, 204, {});
   if (request.method !== 'POST' || !['/hint', '/chat'].includes(request.url)) return respond(response, 404, { error: 'Not found' });
   if (!ai) return respond(response, 503, { error: 'Gemini key not configured' });
@@ -80,4 +82,7 @@ createServer(async (request, response) => {
   }
 }).listen(port, '127.0.0.1', () => {
   console.log(`Nibble hint server listening at http://127.0.0.1:${port}/hint${ai ? '' : ' (no API key yet)'}`);
+  initializeProgressStore()
+    .then((ready) => console.log(ready ? 'Account progress database ready' : 'Account progress database not configured'))
+    .catch((error) => console.error('Account progress database unavailable:', error instanceof Error ? error.message : error));
 });

@@ -32,7 +32,7 @@ export default function CompleteScreen() {
       <View style={styles.streakCard}>
         <Text style={styles.streakNumber}>{streak}</Text>
         <Text style={styles.streakLabel}>{streak === 1 ? 'day' : 'days'} of showing up</Text>
-        <View style={styles.mascot}><Mascot size={148} /></View>
+        <View style={styles.mascot}><Mascot size={148} waveOnPress celebrate /></View>
         <View style={styles.week}>
           {Array.from({ length: 7 }, (_, index) => {
             const date = new Date(monday);
