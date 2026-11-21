@@ -1,13 +1,13 @@
-import type { ReactNode } from 'react';
+import type { ReactNode, RefObject } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { ScrollView, StyleSheet, View } from 'react-native';
+import { ScrollView, StyleSheet, View, type ScrollViewInstance } from 'react-native';
 import { colors } from '@/theme';
 
-export function Screen({ children, footer }: { children: ReactNode; footer?: ReactNode }) {
+export function Screen({ children, footer, scrollRef }: { children: ReactNode; footer?: ReactNode; scrollRef?: RefObject<ScrollViewInstance | null> }) {
   return (
     <SafeAreaView edges={['top', 'bottom']} style={styles.safe}>
       <View style={styles.frame}>
-        <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+        <ScrollView ref={scrollRef} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
           {children}
         </ScrollView>
         {footer}

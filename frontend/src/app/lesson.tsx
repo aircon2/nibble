@@ -1,12 +1,11 @@
 import { router, useLocalSearchParams } from 'expo-router';
-import { useState } from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
+import { useRef, useState } from 'react';
+import { Pressable, StyleSheet, Text, View, type ScrollViewInstance } from 'react-native';
+import { AskNibble } from '@/components/AskNibble';
 import { CodePuzzle } from '@/components/CodePuzzle';
-import { Mascot } from '@/components/Mascot';
 import { PrimaryButton } from '@/components/PrimaryButton';
 import { Screen } from '@/components/Screen';
 import { getLesson } from '@/data/lessons';
-import { getHint } from '@/services/hints';
 import { useProgress } from '@/state/progress';
 import { colors, fonts } from '@/theme';
 
@@ -19,9 +18,8 @@ export default function LessonScreen() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [codeOrder, setCodeOrder] = useState<(string | null)[]>([]);
   const [result, setResult] = useState<Result>(null);
-  const [hint, setHint] = useState<string | null>(null);
-  const [hintLoading, setHintLoading] = useState(false);
   const [finishing, setFinishing] = useState(false);
+  const scrollRef = useRef<ScrollViewInstance>(null);
   const { completeLesson } = useProgress();
   const question = lesson.questions[index];
   const isReady = question.code
@@ -31,14 +29,6 @@ export default function LessonScreen() {
   function updateCode(next: (string | null)[]) {
     setCodeOrder(next);
     setResult(null);
-  }
-
-  async function showHint() {
-    if (hint) { setHint(null); return; }
-    setHintLoading(true);
-    const value = await getHint(question, selectedId);
-    setHint(value);
-    setHintLoading(false);
   }
 
   async function advance() {
@@ -56,7 +46,6 @@ export default function LessonScreen() {
       setSelectedId(null);
       setCodeOrder([]);
       setResult(null);
-      setHint(null);
       return;
     }
     setFinishing(true);
@@ -66,7 +55,7 @@ export default function LessonScreen() {
   }
 
   return (
-    <Screen footer={
+    <Screen scrollRef={scrollRef} footer={
       <View style={styles.footer}>
         {result && <Text style={[styles.result, result === 'incorrect' && styles.incorrect]}>{result === 'correct' ? question.success : question.retry}</Text>}
         <PrimaryButton label={result === 'correct' ? (index === lesson.questions.length - 1 ? 'Finish lesson' : 'Continue') : 'Check my answer'} onPress={advance} disabled={!isReady || finishing} />
@@ -107,13 +96,7 @@ export default function LessonScreen() {
         );
       })}
 
-      <Pressable accessibilityRole="button" onPress={showHint} style={styles.hintRow}>
-        <Mascot size={61} />
-        <View style={styles.hintTextWrap}>
-          {hintLoading ? <ActivityIndicator color={colors.green} size="small" /> : <Text style={styles.hintTitle}>{hint ?? 'Need a nudge? Get a hint'}</Text>}
-          <Text style={styles.hintSub}>No timer. No lost lives. Take your time.</Text>
-        </View>
-      </Pressable>
+      <AskNibble key={question.id} question={question} selectedId={selectedId} onResize={() => scrollRef.current?.scrollToEnd({ animated: true })} />
     </Screen>
   );
 }
@@ -142,10 +125,6 @@ const styles = StyleSheet.create({
   letterTextSelected: { color: colors.white },
   optionLabel: { flex: 1, fontFamily: fonts.semiBold, fontSize: 15, lineHeight: 21, color: colors.ink, marginLeft: 15 },
   checkmark: { fontFamily: fonts.bold, fontSize: 16, color: colors.green, marginLeft: 'auto' },
-  hintRow: { flexDirection: 'row', alignItems: 'center', gap: 9, marginTop: 7, paddingVertical: 5 },
-  hintTextWrap: { flex: 1 },
-  hintTitle: { fontFamily: fonts.semiBold, fontSize: 13, lineHeight: 18, color: colors.green },
-  hintSub: { fontFamily: fonts.regular, fontSize: 11, color: colors.muted, marginTop: 5 },
   footer: { backgroundColor: colors.cream, paddingHorizontal: 24, paddingTop: 8, paddingBottom: 12, width: '100%' },
   result: { fontFamily: fonts.semiBold, fontSize: 13, textAlign: 'center', color: colors.green, marginBottom: 9 },
   incorrect: { color: colors.error },

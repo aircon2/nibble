@@ -2,7 +2,7 @@
 
 Five-minute, beginner-friendly algorithm practice. This Expo app uses the supplied Figma Make designs for its visual style. The starting path has three playable lessons based on LeetCode #1 Two Sum, #20 Valid Parentheses, and #3 Longest Substring Without Repeating Characters. Each lesson ends with a code assembly question: drag lines into the solution, drag them out to undo, or tap them. The beaver mascot is composed from the supplied SVG artwork.
 
-`frontend/` is the Expo app. `backend/` is the optional Gemini hint server. Keep the API key only in `backend/.env`.
+`frontend/` is the Expo app. `backend/` is the Gemini tutoring server. Keep the API key only in `backend/.env`.
 
 ## Run the demo on this Mac
 
@@ -24,9 +24,9 @@ The **You** tab has Sign up, Log in, and Sign out actions powered by the officia
 
 Auth0 currently covers the browser demo. The iOS and Android app can use Auth0's React Native SDK after creating a Native application, adding bundle/package identifiers and callback URLs, and building a development client. Expo Go cannot load that native SDK.
 
-## Add Gemini hints later
+## Ask Nibble chat
 
-Gemini is used only for an optional, context-aware nudge when a learner asks for help. The questions, answers, and fallback hints are authored locally so every lesson remains reliable and works offline. AI-generated question variants can be added after a human reviews their answers and difficulty.
+Each lesson question has an **Ask Nibble** chat. The learner can ask for a hint, ask about the algorithm pattern, or type a follow-up question. Gemini receives the current exercise and recent chat turns; the backend instructs it to coach without revealing the solution. The questions and answers are authored locally. The first hint has an authored fallback if Gemini is unavailable.
 
 Put the key in `backend/.env` as `GEMINI_API_KEY=...`; never put it in an `EXPO_PUBLIC_` variable or mobile source. `.env` files are ignored by Git. In a second terminal at the project root, run:
 
@@ -34,7 +34,7 @@ Put the key in `backend/.env` as `GEMINI_API_KEY=...`; never put it in an `EXPO_
 npm run hints
 ```
 
-Then uncomment `EXPO_PUBLIC_HINT_API_URL` in `frontend/.env` and restart `npm run web`. The hint button falls back to its authored hint if the server or Gemini is unavailable. The server listens on `127.0.0.1:8787` for the Mac demo. A physical phone would need a reachable server address.
+Set `EXPO_PUBLIC_HINT_API_URL=http://127.0.0.1:8787/hint` in `frontend/.env` and restart `npm run web`. The chat uses the same server at `/chat`. The server listens on `127.0.0.1:8787` for the Mac demo. A physical phone would need a reachable server address.
 
 ## Checks
 
