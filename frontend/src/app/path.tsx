@@ -2,33 +2,27 @@ import { router } from 'expo-router';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { BottomNav } from '@/components/BottomNav';
 import { Screen } from '@/components/Screen';
+import { lessons } from '@/data/lessons';
 import { useProgress } from '@/state/progress';
 import { colors, fonts } from '@/theme';
 
-const path = [
-  { number: '01', title: 'Find your first match', detail: 'Arrays · Find a pair', ready: true },
-  { number: '02', title: 'Move the pointers', detail: 'Two pointers · Coming next', ready: false },
-  { number: '03', title: 'Grow the window', detail: 'Sliding window · Coming next', ready: false },
-];
-
 export default function PathScreen() {
-  const { completedDates } = useProgress();
-  const done = completedDates.length > 0;
+  const { completedLessons } = useProgress();
   return (
     <Screen footer={<BottomNav />}>
       <Text style={styles.wordmark}>nibble</Text>
       <Text style={styles.eyebrow}>YOUR STARTING PATH</Text>
       <Text style={styles.title}>One idea at a time.</Text>
-      <Text style={styles.copy}>You don’t need to know everything before you start. Here’s where we begin.</Text>
+      <Text style={styles.copy}>Three real interview problems, broken into small decisions you can make on your phone.</Text>
       <View style={styles.list}>
-        {path.map((item) => (
-          <Pressable key={item.number} disabled={!item.ready} onPress={() => router.push('/lesson')} style={[styles.row, !item.ready && styles.upcoming]}>
+        {lessons.map((item) => (
+          <Pressable key={item.id} accessibilityRole="button" onPress={() => router.push({ pathname: '/lesson', params: { lesson: item.id } })} style={styles.row}>
             <View style={styles.number}><Text style={styles.numberText}>{item.number}</Text></View>
             <View style={{ flex: 1 }}>
               <Text style={styles.rowTitle}>{item.title}</Text>
-              <Text style={styles.rowDetail}>{item.detail}</Text>
+              <Text style={styles.rowDetail}>LeetCode {item.leetcode} · {item.pattern} · {item.difficulty}</Text>
             </View>
-            <Text style={styles.status}>{item.ready ? (done ? '✓' : '→') : '○'}</Text>
+            <Text style={styles.status}>{completedLessons.includes(item.id) ? '✓' : '→'}</Text>
           </Pressable>
         ))}
       </View>
@@ -43,7 +37,6 @@ const styles = StyleSheet.create({
   copy: { fontFamily: fonts.regular, fontSize: 14, lineHeight: 21, color: colors.muted, marginTop: 10 },
   list: { gap: 12, marginTop: 28 },
   row: { minHeight: 81, borderRadius: 18, backgroundColor: colors.white, flexDirection: 'row', alignItems: 'center', gap: 13, padding: 14 },
-  upcoming: { opacity: 0.57 },
   number: { width: 42, height: 42, borderRadius: 12, backgroundColor: colors.paleGreen, alignItems: 'center', justifyContent: 'center' },
   numberText: { fontFamily: fonts.bold, fontSize: 14, color: colors.green },
   rowTitle: { fontFamily: fonts.semiBold, fontSize: 14, color: colors.ink },

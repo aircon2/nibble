@@ -1,0 +1,10 @@
+{
+  "files.exclude": {
+    "**/.*": false,
+    "**/.git": true,
+    "**/.expo": true,
+    "**/node_modules": true,
+    "**/dist": true
+  },
+  "explorer.excludeGitIgnore": false
+}

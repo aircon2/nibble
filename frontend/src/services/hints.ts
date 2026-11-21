@@ -1,4 +1,4 @@
-import type { Question } from '@/data/lesson';
+import type { Question } from '@/data/lessons';
 
 /** The optional endpoint keeps the Gemini key on a server, never in the app. */
 export async function getHint(question: Question, selectedId: string | null): Promise<string> {
@@ -14,10 +14,6 @@ export async function getHint(question: Question, selectedId: string | null): Pr
       signal: controller.signal,
       body: JSON.stringify({
         questionId: question.id,
-        title: question.title,
-        list: question.list,
-        target: question.target,
-        options: question.options,
         selectedId,
       }),
     });

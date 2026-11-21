@@ -3,11 +3,14 @@ import { StyleSheet, Text, View } from 'react-native';
 import { Mascot } from '@/components/Mascot';
 import { PrimaryButton } from '@/components/PrimaryButton';
 import { Screen } from '@/components/Screen';
+import { getLesson, lessons } from '@/data/lessons';
 import { currentStreak, localDateKey, useProgress } from '@/state/progress';
 import { colors, fonts } from '@/theme';
 
 export default function CompleteScreen() {
-  const { earned } = useLocalSearchParams<{ earned?: string }>();
+  const { earned, lesson: lessonId } = useLocalSearchParams<{ earned?: string; lesson?: string }>();
+  const lesson = getLesson(lessonId);
+  const nextLesson = lessons[lessons.findIndex((item) => item.id === lesson.id) + 1];
   const { completedDates } = useProgress();
   const streak = currentStreak(completedDates);
   const today = new Date();
@@ -46,13 +49,13 @@ export default function CompleteScreen() {
 
       <View style={styles.ideaCard}>
         <Text style={styles.ideaEyebrow}>YOU’VE GOT THE IDEA</Text>
-        <Text style={styles.ideaTitle}>2 + 7 = 9. Your first pair, found.</Text>
-        <Text style={styles.ideaCopy}>That’s the first step toward Two Sum.</Text>
+        <Text style={styles.ideaTitle}>{lesson.title} · LeetCode {lesson.leetcode}</Text>
+        <Text style={styles.ideaCopy}>{lesson.takeaway}</Text>
       </View>
       <View style={styles.next}>
-        <Text style={styles.nextTitle}>Tomorrow’s tiny step</Text>
-        <Text style={styles.nextCopy}>Find a pair in a slightly bigger list.</Text>
-        <Text style={styles.nextSub}>5 minutes. You already know how to start.</Text>
+        <Text style={styles.nextTitle}>Your next tiny step</Text>
+        <Text style={styles.nextCopy}>{nextLesson ? `Try ${nextLesson.title} on your path.` : 'You finished the starting path!'}</Text>
+        <Text style={styles.nextSub}>Come back whenever you’re ready to practice again.</Text>
       </View>
     </Screen>
   );

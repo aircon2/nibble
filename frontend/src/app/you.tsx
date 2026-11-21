@@ -18,7 +18,7 @@ export default function YouScreen() {
       </View>
       <AccountCard />
       <View style={styles.stats}>
-        <View style={styles.stat}><Text style={styles.value}>{completedDates.length}</Text><Text style={styles.label}>days practiced</Text></View>
+        <View style={styles.stat}><Text style={styles.value}>{completedDates.length}</Text><Text style={styles.label}>{completedDates.length === 1 ? 'day practiced' : 'days practiced'}</Text></View>
         <View style={styles.stat}><Text style={styles.value}>{currentStreak(completedDates)}</Text><Text style={styles.label}>day streak</Text></View>
         <View style={styles.stat}><Text style={styles.value}>{xp}</Text><Text style={styles.label}>XP earned</Text></View>
       </View>

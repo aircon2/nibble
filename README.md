@@ -1,6 +1,8 @@
 # Nibble
 
-Five-minute, beginner-friendly algorithm practice. This Expo app is a React Native translation of the three supplied Figma Make exports: the home screen, the Two Sum question screen, and the completion screen. The beaver mascot is composed from the supplied SVG artwork.
+Five-minute, beginner-friendly algorithm practice. This Expo app uses the supplied Figma Make designs for its visual style. The starting path has three playable lessons based on LeetCode #1 Two Sum, #20 Valid Parentheses, and #3 Longest Substring Without Repeating Characters. Each lesson ends with a code assembly question: drag lines into the solution, drag them out to undo, or tap them. The beaver mascot is composed from the supplied SVG artwork.
+
+`frontend/` is the Expo app. `backend/` is the optional Gemini hint server. Keep the API key only in `backend/.env`.
 
 ## Run the demo on this Mac
 
@@ -9,7 +11,8 @@ Requirements: Node.js 22+ and npm. Xcode is not currently installed on this Mac,
 ```bash
 cd "/Users/angelacheng/nibble"
 npm install
-cp .env.example .env
+cp backend/.env.example backend/.env
+cp frontend/.env.example frontend/.env
 npm run web
 ```
 
@@ -23,20 +26,20 @@ Auth0 currently covers the browser demo. The iOS and Android app can use Auth0's
 
 ## Add Gemini hints later
 
-Gemini is used for an optional, context-aware nudge when a learner asks for help. The three questions and answer checks are authored locally so the lesson remains reliable and works offline. AI-generated question variants can be added after a human reviews their answers and difficulty.
+Gemini is used only for an optional, context-aware nudge when a learner asks for help. The questions, answers, and fallback hints are authored locally so every lesson remains reliable and works offline. AI-generated question variants can be added after a human reviews their answers and difficulty.
 
-Put the key in `.env` as `GEMINI_API_KEY=...`; never put it in an `EXPO_PUBLIC_` variable or mobile source. `.env` is ignored by Git. Uncomment `EXPO_PUBLIC_HINT_API_URL` in `.env` once the key is ready. In a second terminal, run:
+Put the key in `backend/.env` as `GEMINI_API_KEY=...`; never put it in an `EXPO_PUBLIC_` variable or mobile source. `.env` files are ignored by Git. In a second terminal at the project root, run:
 
 ```bash
 npm run hints
 ```
 
-Restart `npm run web` after changing `.env`. The hint button falls back to its authored hint if the server or Gemini is unavailable. The server listens on `127.0.0.1:8787` for the Mac demo. A physical phone would need a reachable server address.
+Then uncomment `EXPO_PUBLIC_HINT_API_URL` in `frontend/.env` and restart `npm run web`. The hint button falls back to its authored hint if the server or Gemini is unavailable. The server listens on `127.0.0.1:8787` for the Mac demo. A physical phone would need a reachable server address.
 
 ## Checks
 
 ```bash
 npm run typecheck
 npm run lint
-npx expo export --platform web
+npm run export:web
 ```

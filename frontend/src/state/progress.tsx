@@ -3,10 +3,10 @@ import { createContext, useContext, useEffect, useMemo, useState } from 'react';
 
 const STORAGE_KEY = 'nibble-progress-v1';
 
-type Progress = { completedDates: string[]; xp: number };
+type Progress = { completedDates: string[]; completedLessons: string[]; xp: number };
 type ProgressContextValue = Progress & {
   ready: boolean;
-  completeToday: () => Promise<boolean>;
+  completeLesson: (lessonId: string) => Promise<number>;
   resetProgress: () => Promise<void>;
 };
 
@@ -32,7 +32,7 @@ export function currentStreak(dates: string[], today = new Date()): number {
 }
 
 export function ProgressProvider({ children }: { children: React.ReactNode }) {
-  const [progress, setProgress] = useState<Progress>({ completedDates: [], xp: 0 });
+  const [progress, setProgress] = useState<Progress>({ completedDates: [], completedLessons: [], xp: 0 });
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
@@ -44,6 +44,8 @@ export function ProgressProvider({ children }: { children: React.ReactNode }) {
         if (typeof saved === 'object' && saved !== null && 'completedDates' in saved && Array.isArray(saved.completedDates)) {
           setProgress({
             completedDates: saved.completedDates.filter((item): item is string => typeof item === 'string'),
+            completedLessons: 'completedLessons' in saved && Array.isArray(saved.completedLessons)
+              ? saved.completedLessons.filter((item): item is string => typeof item === 'string') : [],
             xp: 'xp' in saved && typeof saved.xp === 'number' ? saved.xp : 0,
           });
         }
@@ -56,16 +58,17 @@ export function ProgressProvider({ children }: { children: React.ReactNode }) {
   const value = useMemo<ProgressContextValue>(() => ({
     ...progress,
     ready,
-    async completeToday() {
+    async completeLesson(lessonId: string) {
+      if (progress.completedLessons.includes(lessonId)) return 0;
       const today = localDateKey();
-      if (progress.completedDates.includes(today)) return false;
-      const next = { completedDates: [...progress.completedDates, today].sort(), xp: progress.xp + 20 };
+      const dates = progress.completedDates.includes(today) ? progress.completedDates : [...progress.completedDates, today].sort();
+      const next = { completedDates: dates, completedLessons: [...progress.completedLessons, lessonId], xp: progress.xp + 20 };
       setProgress(next);
       await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(next));
-      return true;
+      return 20;
     },
     async resetProgress() {
-      const empty = { completedDates: [], xp: 0 };
+      const empty = { completedDates: [], completedLessons: [], xp: 0 };
       setProgress(empty);
       await AsyncStorage.removeItem(STORAGE_KEY);
     },

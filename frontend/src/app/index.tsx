@@ -4,6 +4,7 @@ import { BottomNav } from '@/components/BottomNav';
 import { Mascot } from '@/components/Mascot';
 import { PrimaryButton } from '@/components/PrimaryButton';
 import { Screen } from '@/components/Screen';
+import { lessons } from '@/data/lessons';
 import { currentStreak, localDateKey, useProgress } from '@/state/progress';
 import { colors, fonts } from '@/theme';
 
@@ -19,9 +20,9 @@ function weekDays() {
 }
 
 export default function TodayScreen() {
-  const { completedDates, ready } = useProgress();
+  const { completedDates, completedLessons, ready } = useProgress();
   const streak = currentStreak(completedDates);
-  const doneToday = completedDates.includes(localDateKey());
+  const doneToday = completedLessons.includes(lessons[0].id);
   const todayKey = localDateKey();
 
   return (
@@ -58,24 +59,24 @@ export default function TodayScreen() {
 
       <View style={styles.dailyCard}>
         <Text style={styles.cardEyebrow}>YOUR DAILY 5</Text>
-        <Text style={styles.cardTitle}>{doneToday ? 'Your first match, found' : 'Find your first match'}</Text>
-        <Text style={styles.cardCopy}>Learn to spot a pair in a list.{'\n'}We’ll break it down together.</Text>
+        <Text style={styles.cardTitle}>{doneToday ? 'Two Sum, solved' : 'Solve Two Sum'}</Text>
+        <Text style={styles.cardCopy}>Find the right indices, handle duplicates, and discover the one-pass solution.</Text>
         <View style={styles.meta}>
-          <Text style={styles.tag}>Arrays</Text>
-          <Text style={styles.metaText}>Beginner · 5 min</Text>
+          <Text style={styles.tag}>LeetCode #1</Text>
+          <Text style={styles.metaText}>Hash map · Easy · 5 min</Text>
         </View>
-        <PrimaryButton label={doneToday ? 'Practice again  →' : 'Let’s do one  →'} onPress={() => router.push('/lesson')} />
+        <PrimaryButton label={doneToday ? 'Practice again  →' : 'Let’s do one  →'} onPress={() => router.push({ pathname: '/lesson', params: { lesson: lessons[0].id } })} />
       </View>
 
       <View style={styles.pathHeading}>
         <Text style={styles.pathTitle}>Your starting path</Text>
-        <Text style={styles.pathCount}>{ready && completedDates.length > 0 ? '1 of 3' : '0 of 3'}</Text>
+        <Text style={styles.pathCount}>{ready ? completedLessons.length : 0} of {lessons.length}</Text>
       </View>
-      <Pressable onPress={() => router.push('/lesson')} style={styles.lessonRow} accessibilityRole="button">
+      <Pressable onPress={() => router.push('/path')} style={styles.lessonRow} accessibilityRole="button">
         <View style={styles.lessonNumber}><Text style={styles.lessonNumberText}>01</Text></View>
         <View style={{ flex: 1 }}>
-          <Text style={styles.lessonTitle}>Arrays, without the overwhelm</Text>
-          <Text style={styles.lessonSub}>One idea. Then one tiny challenge.</Text>
+          <Text style={styles.lessonTitle}>Real LeetCode, small steps</Text>
+          <Text style={styles.lessonSub}>Two Sum · Valid Parentheses · Longest Substring</Text>
         </View>
         <Text style={styles.chevron}>›</Text>
       </Pressable>
