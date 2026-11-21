@@ -1,4 +1,5 @@
 import { router } from 'expo-router';
+import { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { BottomNav } from '@/components/BottomNav';
 import { Mascot } from '@/components/Mascot';
@@ -19,10 +20,22 @@ function weekDays() {
   });
 }
 
+const courses: { id: string; title: string; description: string; icon: string; lessonIds: string[] }[] = [
+  { id: 'arrays', title: 'Arrays & Two Pointers', description: 'Lookups, merges, and water between bars', icon: '▦', lessonIds: ['two-sum', 'merge-sorted-arrays', 'three-sum', 'trapping-rain-water'] },
+  { id: 'strings', title: 'Strings & Stacks', description: 'Match brackets and grow windows', icon: '{ }', lessonIds: ['valid-parentheses', 'longest-substring', 'minimum-window-substring'] },
+  { id: 'trees', title: 'Trees & DFS', description: 'Explore nodes in different orders', icon: '♧', lessonIds: ['tree-traversals', 'validate-bst', 'binary-tree-max-path'] },
+  { id: 'search', title: 'Search & Dynamic Programming', description: 'Halve the search and optimize a run', icon: '⌕', lessonIds: ['binary-search', 'maximum-subarray', 'edit-distance'] },
+];
+
 export default function TodayScreen() {
+  const [selectedCourse, setSelectedCourse] = useState<string | null>(null);
   const { completedDates, completedLessons, ready } = useProgress();
   const streak = currentStreak(completedDates);
   const doneToday = completedLessons.includes(lessons[0].id);
+  const nextLessonId = lessons.find((lesson) => !completedLessons.includes(lesson.id))?.id;
+  const activeCourse = selectedCourse === null
+    ? courses.find((course) => course.lessonIds.includes(nextLessonId ?? ''))?.id ?? courses[0].id
+    : selectedCourse;
   const todayKey = localDateKey();
 
   return (
@@ -69,17 +82,47 @@ export default function TodayScreen() {
       </View>
 
       <View style={styles.pathHeading}>
-        <Text style={styles.pathTitle}>Your starting path</Text>
+        <Text style={styles.pathTitle}>Choose a course</Text>
         <Text style={styles.pathCount}>{ready ? completedLessons.length : 0} of {lessons.length}</Text>
       </View>
-      <Pressable onPress={() => router.push('/path')} style={styles.lessonRow} accessibilityRole="button">
-        <View style={styles.lessonNumber}><Text style={styles.lessonNumberText}>01</Text></View>
-        <View style={{ flex: 1 }}>
-          <Text style={styles.lessonTitle}>Real LeetCode, small steps</Text>
-          <Text style={styles.lessonSub}>Two Sum · Valid Parentheses · Longest Substring</Text>
-        </View>
-        <Text style={styles.chevron}>›</Text>
-      </Pressable>
+      {courses.map((course) => <View key={course.id} style={styles.courseCard}>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityState={{ expanded: activeCourse === course.id }}
+          onPress={() => setSelectedCourse(activeCourse === course.id ? '' : course.id)}
+          style={styles.courseHeader}
+        >
+          <View style={styles.courseIcon}><Text style={styles.courseIconText}>{course.icon}</Text></View>
+          <View style={styles.courseInfo}>
+            <Text style={styles.courseTitle}>{course.title}</Text>
+            <Text style={styles.courseDescription}>{course.description}</Text>
+            <Text style={styles.courseProgress}>{course.lessonIds.filter((id) => completedLessons.includes(id)).length} of {course.lessonIds.length} completed</Text>
+          </View>
+          <Text style={styles.courseChevron}>{activeCourse === course.id ? '⌄' : '›'}</Text>
+        </Pressable>
+        {activeCourse === course.id && <View style={styles.courseLessons}>{(['Easy', 'Medium', 'Hard'] as const).map((level) => <View key={level}>
+          <Text style={styles.levelHeading}>{level.toUpperCase()}</Text>
+          {lessons.filter((lesson) => course.lessonIds.includes(lesson.id) && lesson.difficulty === level).map((lesson) => {
+        const complete = completedLessons.includes(lesson.id);
+        const next = lesson.id === nextLessonId;
+        return <Pressable
+          key={lesson.id}
+          onPress={() => router.push({ pathname: '/lesson', params: { lesson: lesson.id } })}
+          style={[styles.lessonRow, next && styles.lessonRowNext]}
+          accessibilityRole="button"
+          accessibilityLabel={`${lesson.title}, LeetCode ${lesson.leetcode}, ${complete ? 'completed' : next ? 'up next' : 'lesson'}`}
+        >
+          <View style={[styles.lessonNumber, complete && styles.lessonNumberComplete]}><Text style={[styles.lessonNumberText, complete && styles.lessonNumberTextComplete]}>{complete ? '✓' : lesson.number}</Text></View>
+          <View style={styles.lessonInfo}>
+            <Text style={styles.lessonTitle}>{lesson.title}</Text>
+            <Text style={styles.lessonSub}>LeetCode {lesson.leetcode} · {lesson.pattern}</Text>
+          </View>
+          <Text style={[styles.difficulty, lesson.difficulty === 'Medium' && styles.difficultyMedium, lesson.difficulty === 'Hard' && styles.difficultyHard]}>{lesson.difficulty}</Text>
+          <Text style={styles.chevron}>{next ? '→' : '›'}</Text>
+        </Pressable>;
+          })}
+        </View>)}</View>}
+      </View>)}
     </Screen>
   );
 }
@@ -113,10 +156,28 @@ const styles = StyleSheet.create({
   pathHeading: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 29, marginBottom: 11 },
   pathTitle: { fontFamily: fonts.semiBold, fontSize: 16, color: colors.ink },
   pathCount: { fontFamily: fonts.medium, fontSize: 12, color: colors.muted },
-  lessonRow: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: colors.white, padding: 14, borderRadius: 17 },
+  courseCard: { backgroundColor: colors.white, borderRadius: 18, borderWidth: 1, borderColor: '#F4EFE6', marginBottom: 10, overflow: 'hidden' },
+  courseHeader: { flexDirection: 'row', alignItems: 'center', gap: 11, padding: 14 },
+  courseIcon: { width: 42, height: 42, borderRadius: 12, backgroundColor: colors.paleGreen, alignItems: 'center', justifyContent: 'center' },
+  courseIconText: { fontFamily: fonts.bold, fontSize: 22, color: colors.green },
+  courseInfo: { flex: 1 },
+  courseTitle: { fontFamily: fonts.semiBold, fontSize: 14, color: colors.ink },
+  courseDescription: { fontFamily: fonts.regular, fontSize: 11, color: colors.muted, marginTop: 3 },
+  courseProgress: { fontFamily: fonts.bold, fontSize: 10, color: colors.green, marginTop: 5 },
+  courseChevron: { fontFamily: fonts.regular, fontSize: 25, color: colors.muted },
+  courseLessons: { paddingHorizontal: 10, paddingBottom: 8 },
+  levelHeading: { fontFamily: fonts.bold, fontSize: 10, letterSpacing: 0.6, color: colors.muted, marginTop: 8, marginBottom: 6, marginLeft: 4 },
+  lessonRow: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: colors.white, padding: 14, borderRadius: 17, marginBottom: 9, borderWidth: 1, borderColor: '#F4EFE6' },
+  lessonRowNext: { borderColor: colors.green },
+  lessonInfo: { flex: 1 },
   lessonNumber: { width: 39, height: 39, borderRadius: 12, backgroundColor: colors.paleGreen, alignItems: 'center', justifyContent: 'center' },
+  lessonNumberComplete: { backgroundColor: colors.green },
   lessonNumberText: { fontFamily: fonts.bold, fontSize: 14, color: colors.green },
+  lessonNumberTextComplete: { color: colors.white },
   lessonTitle: { fontFamily: fonts.semiBold, fontSize: 13, color: colors.ink },
   lessonSub: { fontFamily: fonts.regular, fontSize: 11, color: colors.muted, marginTop: 3 },
+  difficulty: { fontFamily: fonts.bold, fontSize: 10, color: colors.green, backgroundColor: colors.paleGreen, borderRadius: 10, overflow: 'hidden', paddingHorizontal: 7, paddingVertical: 4 },
+  difficultyMedium: { color: '#8A622A', backgroundColor: '#F9EBCD' },
+  difficultyHard: { color: '#9B4A42', backgroundColor: '#FBE3DC' },
   chevron: { fontFamily: fonts.regular, fontSize: 26, color: colors.muted },
 });

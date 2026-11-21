@@ -10,15 +10,17 @@ import { colors, fonts } from '@/theme';
 export default function CompleteScreen() {
   const { earned, lesson: lessonId } = useLocalSearchParams<{ earned?: string; lesson?: string }>();
   const lesson = getLesson(lessonId);
-  const nextLesson = lessons[lessons.findIndex((item) => item.id === lesson.id) + 1];
-  const { completedDates } = useProgress();
+  const { completedDates, completedLessons } = useProgress();
+  const nextLesson = lessons.find((item) => !completedLessons.includes(item.id));
   const streak = currentStreak(completedDates);
   const today = new Date();
   const monday = new Date(today.getFullYear(), today.getMonth(), today.getDate());
   monday.setDate(monday.getDate() - ((monday.getDay() + 6) % 7));
 
   return (
-    <Screen footer={<View style={styles.footer}><PrimaryButton label="Done for today" onPress={() => router.replace('/')} /></View>}>
+    <Screen footer={<View style={styles.footer}><PrimaryButton label={nextLesson ? 'Follow Nibble  →' : 'Done for today'} onPress={() => nextLesson
+      ? router.replace({ pathname: '/path', params: { animateFrom: earned === '20' ? lesson.id : '' } })
+      : router.replace('/')} /></View>}>
       <View style={styles.topline}>
         <Text style={styles.wordmark}>nibble</Text>
         <Text style={styles.xp}>+{earned === '20' ? '20' : '0'} XP</Text>

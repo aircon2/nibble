@@ -1,4 +1,4 @@
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 import { BottomNav } from '@/components/BottomNav';
 import { AccountCard } from '@/components/AccountCard';
 import { Mascot } from '@/components/Mascot';
@@ -7,7 +7,7 @@ import { currentStreak, useProgress } from '@/state/progress';
 import { colors, fonts } from '@/theme';
 
 export default function YouScreen() {
-  const { completedDates, xp, resetProgress, syncMode, syncError } = useProgress();
+  const { completedDates, xp, syncMode, syncError } = useProgress();
   return (
     <Screen footer={<BottomNav />}>
       <Text style={styles.wordmark}>nibble</Text>
@@ -24,7 +24,6 @@ export default function YouScreen() {
         <View style={styles.stat}><Text style={styles.value}>{xp}</Text><Text style={styles.label}>XP earned</Text></View>
       </View>
       <Text style={styles.note}>Every small session counts. Come back whenever you’re ready.</Text>
-      <Pressable accessibilityRole="button" onPress={resetProgress} style={styles.reset}><Text style={styles.resetText}>Reset demo progress</Text></Pressable>
     </Screen>
   );
 }
@@ -40,6 +39,4 @@ const styles = StyleSheet.create({
   label: { fontFamily: fonts.regular, fontSize: 11, color: colors.muted, marginTop: 4 },
   note: { fontFamily: fonts.regular, fontSize: 14, lineHeight: 21, color: colors.muted, textAlign: 'center', marginTop: 27 },
   syncNote: { fontFamily: fonts.medium, fontSize: 11, color: colors.muted, textAlign: 'center', marginTop: 10 },
-  reset: { alignSelf: 'center', padding: 13, marginTop: 24 },
-  resetText: { fontFamily: fonts.semiBold, fontSize: 12, color: colors.muted, textDecorationLine: 'underline' },
 });

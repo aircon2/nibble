@@ -15,8 +15,9 @@ type ProgressContextValue = Progress & {
 };
 
 const EMPTY: Progress = { completedDates: [], completedLessons: [], xp: 0 };
-const BASE_URL = process.env.EXPO_PUBLIC_PROGRESS_API_URL?.replace(/\/+$/, '');
-const AUDIENCE = process.env.EXPO_PUBLIC_AUTH0_AUDIENCE;
+const sameOriginApi = typeof window !== 'undefined' && !['localhost', '127.0.0.1'].includes(window.location.hostname) ? '/api' : undefined;
+const BASE_URL = process.env.EXPO_PUBLIC_PROGRESS_API_URL?.replace(/\/+$/, '') || sameOriginApi;
+const AUDIENCE = process.env.EXPO_PUBLIC_AUTH0_AUDIENCE || 'https://nibble-api';
 const ProgressContext = createContext<ProgressContextValue | null>(null);
 
 function parseProgress(value: unknown): Progress {
@@ -67,8 +68,17 @@ export function ProgressProvider({ children }: { children: React.ReactNode }) {
     (async () => {
       if (canSync) {
         try {
-          const saved = parseProgress(await cloudRequest('/progress', 'GET'));
+          let saved = parseProgress(await cloudRequest('/progress', 'GET'));
+          const device = await loadDevice(storageKey).catch(() => EMPTY);
+          // A lesson completed while sync was unavailable is kept under this account's device key.
+          // Replay same-day completions when the account connection returns.
+          if (device.completedDates.includes(localDateKey())) {
+            for (const lessonId of device.completedLessons.filter((id) => !saved.completedLessons.includes(id))) {
+              saved = parseProgress(await cloudRequest('/practice', 'POST', { lessonId, practiceDate: localDateKey() }));
+            }
+          }
           if (active) { setProgress(saved); setSyncMode('cloud'); setSyncError(null); setLoadedKey(storageKey); }
+          saveDevice(storageKey, saved).catch(() => {});
           return;
         } catch (error) {
           console.warn('Account progress load failed:', error instanceof Error ? error.message : String(error));
@@ -92,7 +102,9 @@ export function ProgressProvider({ children }: { children: React.ReactNode }) {
       if (canSync && syncMode === 'cloud') {
         try {
           const result = await cloudRequest('/practice', 'POST', { lessonId, practiceDate: localDateKey() });
-          setProgress(parseProgress(result));
+          const saved = parseProgress(result);
+          setProgress(saved);
+          saveDevice(storageKey, saved).catch(() => {});
           return typeof result === 'object' && result !== null && 'earned' in result && result.earned === 20 ? 20 : 0;
         } catch {
           setSyncMode('device');

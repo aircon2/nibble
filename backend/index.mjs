@@ -1,11 +1,25 @@
-import { createServer } from 'node:http';
 import { GoogleGenAI } from '@google/genai';
-import { handleProgress, initializeProgressStore } from './progress.mjs';
+import { handleProgress } from './progress.mjs';
+import { readJsonBody } from './request.mjs';
 
-const port = Number(process.env.HINT_PORT ?? 8787);
+const frontendOrigin = process.env.FRONTEND_ORIGIN || 'http://localhost:8081';
 const model = process.env.GEMINI_MODEL || 'gemini-3.5-flash-lite';
 const key = process.env.GEMINI_API_KEY;
 const ai = key ? new GoogleGenAI({ apiKey: key }) : null;
+const usage = new Map();
+
+function withinChatLimit(request) {
+  const forwarded = request.headers['x-forwarded-for'];
+  const address = (typeof forwarded === 'string' ? forwarded.split(',')[0].trim() : '') || request.socket?.remoteAddress || 'unknown';
+  const minute = Math.floor(Date.now() / 60000);
+  const entry = usage.get(address);
+  const count = entry?.minute === minute ? entry.count + 1 : 1;
+  usage.set(address, { minute, count });
+  if (usage.size > 1000) {
+    for (const [key, value] of usage) if (value.minute < minute) usage.delete(key);
+  }
+  return count <= 30;
+}
 
 const questions = {
   'two-sum-indices': { context: 'Two Sum: nums=[3,2,4], target=6. Return two distinct zero-based indices.', options: { a: '[0,0]', b: '[1,2]', c: '[0,2]' } },
@@ -24,7 +38,7 @@ const questions = {
 function respond(response, status, data) {
   response.writeHead(status, {
     'Content-Type': 'application/json; charset=utf-8',
-    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Origin': frontendOrigin,
     'Access-Control-Allow-Methods': 'POST, OPTIONS',
     'Access-Control-Allow-Headers': 'Content-Type',
     'Cache-Control': 'no-store',
@@ -32,23 +46,35 @@ function respond(response, status, data) {
   response.end(JSON.stringify(data));
 }
 
-createServer(async (request, response) => {
-  if (await handleProgress(request, response)) return;
+export async function handleRequest(request, response, route = new URL(request.url, 'http://localhost').pathname) {
+  if (await handleProgress(request, response, route)) return;
+  if (request.headers.origin && request.headers.origin !== frontendOrigin) {
+    try {
+      const origin = new URL(request.headers.origin);
+      if (!['http:', 'https:'].includes(origin.protocol) || origin.host !== request.headers.host) {
+        return respond(response, 403, { error: 'Origin not allowed' });
+      }
+    } catch { return respond(response, 403, { error: 'Origin not allowed' }); }
+  }
   if (request.method === 'OPTIONS') return respond(response, 204, {});
-  if (request.method !== 'POST' || !['/hint', '/chat'].includes(request.url)) return respond(response, 404, { error: 'Not found' });
+  if (request.method !== 'POST' || !['/hint', '/chat'].includes(route)) return respond(response, 404, { error: 'Not found' });
   if (!ai) return respond(response, 503, { error: 'Gemini key not configured' });
+  if (!withinChatLimit(request)) return respond(response, 429, { error: 'Too many requests. Try again in a minute.' });
 
   try {
-    let body = '';
-    for await (const chunk of request) {
-      body += chunk;
-      if (body.length > 4096) return respond(response, 413, { error: 'Request too large' });
-    }
-    const input = JSON.parse(body);
-    const question = questions[input.questionId];
+    const input = await readJsonBody(request, 4096);
+    if (!input || typeof input !== 'object') return respond(response, 400, { error: 'Invalid request' });
+    const supplied = input.context;
+    const validContext = supplied && typeof supplied === 'object' &&
+      ['title', 'description', 'example', 'prompt'].every((field) => typeof supplied[field] === 'string' && supplied[field].length <= 500) &&
+      Array.isArray(supplied.choices) && supplied.choices.length <= 8 &&
+      supplied.choices.every((choice) => typeof choice === 'string' && choice.length <= 300);
+    const question = questions[input.questionId] || (validContext && typeof input.questionId === 'string' && /^[a-z0-9-]{1,80}$/.test(input.questionId)
+      ? { context: `${supplied.title}. ${supplied.description} Example: ${supplied.example}. ${supplied.prompt} Choices or code lines: ${supplied.choices.join(' | ')}`, options: {} }
+      : null);
     if (!question) return respond(response, 400, { error: 'Unknown question' });
     const selected = Object.hasOwn(question.options, input.selectedId) ? question.options[input.selectedId] : 'nothing yet';
-    if (request.url === '/chat') {
+    if (route === '/chat') {
       const message = typeof input.message === 'string' ? input.message.trim() : '';
       if (!message || message.length > 500) return respond(response, 400, { error: 'Invalid message' });
       if (!Array.isArray(input.history) || input.history.length > 6 || input.history.some((turn) =>
@@ -77,12 +103,8 @@ createServer(async (request, response) => {
     if (!hint) throw new Error('Empty response');
     return respond(response, 200, { hint });
   } catch (error) {
-    console.error('Hint request failed:', error instanceof Error ? error.message : error);
-    return respond(response, 502, { error: 'Gemini unavailable' });
+    const status = error.status || 502;
+    if (status >= 500) console.error('Hint request failed:', error instanceof Error ? error.message : error);
+    return respond(response, status, { error: status >= 500 ? 'Gemini unavailable' : error.message });
   }
-}).listen(port, '127.0.0.1', () => {
-  console.log(`Nibble hint server listening at http://127.0.0.1:${port}/hint${ai ? '' : ' (no API key yet)'}`);
-  initializeProgressStore()
-    .then((ready) => console.log(ready ? 'Account progress database ready' : 'Account progress database not configured'))
-    .catch((error) => console.error('Account progress database unavailable:', error instanceof Error ? error.message : error));
-});
+}

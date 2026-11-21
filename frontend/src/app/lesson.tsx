@@ -5,24 +5,32 @@ import { AskNibble } from '@/components/AskNibble';
 import { CodePuzzle } from '@/components/CodePuzzle';
 import { PrimaryButton } from '@/components/PrimaryButton';
 import { Screen } from '@/components/Screen';
+import { TreeDiagram } from '@/components/TreeDiagram';
 import { getLesson } from '@/data/lessons';
 import { useProgress } from '@/state/progress';
 import { colors, fonts } from '@/theme';
 
 type Result = 'correct' | 'incorrect' | null;
+const treeOrders: Record<string, string[]> = {
+  'tree-preorder': ['A', 'B', 'D', 'E', 'C', 'F', 'G'],
+  'tree-inorder': ['D', 'B', 'E', 'A', 'F', 'C', 'G'],
+  'tree-postorder': ['D', 'E', 'B', 'F', 'G', 'C', 'A'],
+};
 
 export default function LessonScreen() {
   const { lesson: lessonId } = useLocalSearchParams<{ lesson?: string }>();
   const lesson = getLesson(lessonId);
   const [index, setIndex] = useState(0);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [treeSelection, setTreeSelection] = useState<string[]>([]);
   const [codeOrder, setCodeOrder] = useState<(string | null)[]>([]);
   const [result, setResult] = useState<Result>(null);
   const [finishing, setFinishing] = useState(false);
   const scrollRef = useRef<ScrollViewInstance>(null);
   const { completeLesson } = useProgress();
   const question = lesson.questions[index];
-  const isReady = question.code
+  const isTree = lesson.id === 'tree-traversals';
+  const isReady = isTree ? treeSelection.length === 7 : question.code
     ? question.code.solutionIds.every((_, slot) => Boolean(codeOrder[slot]))
     : Boolean(selectedId);
 
@@ -34,7 +42,9 @@ export default function LessonScreen() {
   async function advance() {
     if (result !== 'correct') {
       if (isReady) {
-        const correct = question.code
+        const correct = isTree
+          ? treeSelection.join(',') === treeOrders[question.id].join(',')
+          : question.code
           ? question.code.solutionIds.every((id, slot) => codeOrder[slot] === id)
           : selectedId === question.correctId;
         setResult(correct ? 'correct' : 'incorrect');
@@ -44,6 +54,7 @@ export default function LessonScreen() {
     if (index < lesson.questions.length - 1) {
       setIndex(index + 1);
       setSelectedId(null);
+      setTreeSelection([]);
       setCodeOrder([]);
       setResult(null);
       return;
@@ -74,11 +85,24 @@ export default function LessonScreen() {
       <View style={styles.listCard}>
         <Text style={styles.listLabel}>{lesson.title.toUpperCase()}</Text>
         <Text style={styles.problemStatement}>{lesson.intro}</Text>
-        <View style={styles.example}><Text style={styles.exampleText}>{question.example}</Text></View>
+        <View style={styles.example}>
+          {isTree && <TreeDiagram order={treeSelection} disabled={result === 'correct' || finishing} onSelect={(node) => {
+            setTreeSelection((current) => [...current, node]);
+            setResult(null);
+          }} />}
+          <Text style={styles.exampleText}>{question.example}</Text>
+        </View>
       </View>
 
       <Text style={styles.prompt}>{question.prompt}</Text>
-      {question.code ? <CodePuzzle puzzle={question.code} value={codeOrder} onChange={updateCode} disabled={result === 'correct' || finishing} /> : question.options.map((option, optionIndex) => {
+      {isTree ? <View style={styles.treeAnswer}>
+        <Text style={styles.treeCount}>{treeSelection.length} of 7 nodes selected</Text>
+        <Text style={styles.treeSequence}>{treeSelection.length ? treeSelection.join('  →  ') : 'Tap A, B, C, D, E, F, G on the tree'}</Text>
+        <View style={styles.treeControls}>
+          <Pressable accessibilityRole="button" disabled={!treeSelection.length || result === 'correct'} onPress={() => { setTreeSelection((current) => current.slice(0, -1)); setResult(null); }} style={styles.treeControl}><Text style={styles.treeControlText}>Undo last</Text></Pressable>
+          <Pressable accessibilityRole="button" disabled={!treeSelection.length || result === 'correct'} onPress={() => { setTreeSelection([]); setResult(null); }} style={styles.treeControl}><Text style={styles.treeControlText}>Clear all</Text></Pressable>
+        </View>
+      </View> : question.code ? <CodePuzzle puzzle={question.code} value={codeOrder} onChange={updateCode} disabled={result === 'correct' || finishing} /> : question.options.map((option, optionIndex) => {
         const selected = selectedId === option.id;
         return (
           <Pressable
@@ -96,7 +120,7 @@ export default function LessonScreen() {
         );
       })}
 
-      <AskNibble key={question.id} question={question} selectedId={selectedId} onResize={() => scrollRef.current?.scrollToEnd({ animated: true })} />
+      <AskNibble key={question.id} question={question} selectedId={isTree ? treeSelection.join(',') : selectedId} onResize={() => scrollRef.current?.scrollToEnd({ animated: true })} />
     </Screen>
   );
 }
@@ -116,6 +140,12 @@ const styles = StyleSheet.create({
   problemStatement: { fontFamily: fonts.regular, fontSize: 13, lineHeight: 19, color: colors.ink, marginTop: 8 },
   example: { backgroundColor: colors.white, borderRadius: 12, padding: 13, marginTop: 13 },
   exampleText: { fontFamily: 'monospace', fontSize: 13, lineHeight: 20, color: colors.ink },
+  treeAnswer: { backgroundColor: colors.white, borderRadius: 15, borderWidth: 1, borderColor: colors.line, padding: 13 },
+  treeCount: { fontFamily: fonts.bold, fontSize: 11, color: colors.green },
+  treeSequence: { fontFamily: fonts.semiBold, fontSize: 14, color: colors.ink, marginTop: 7, minHeight: 22 },
+  treeControls: { flexDirection: 'row', gap: 10, marginTop: 12 },
+  treeControl: { backgroundColor: colors.paleGreen, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 8 },
+  treeControlText: { fontFamily: fonts.semiBold, fontSize: 12, color: colors.green },
   prompt: { fontFamily: fonts.semiBold, fontSize: 16, color: colors.ink, marginTop: 25, marginBottom: 15 },
   option: { minHeight: 51, borderRadius: 14, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.white, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingVertical: 10, marginBottom: 10 },
   optionSelected: { borderWidth: 2, borderColor: colors.green, backgroundColor: colors.paleGreen, paddingHorizontal: 11 },

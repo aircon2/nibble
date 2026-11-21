@@ -1,10 +1,12 @@
 import pg from 'pg';
 import { readFileSync } from 'node:fs';
 import { createRemoteJWKSet, jwtVerify } from 'jose';
+import { readJsonBody } from './request.mjs';
 
 const databaseUrl = process.env.DATABASE_URL;
 const issuer = process.env.AUTH0_ISSUER_BASE_URL?.replace(/\/+$/, '') + '/';
 const audience = process.env.AUTH0_AUDIENCE;
+const frontendOrigin = process.env.FRONTEND_ORIGIN || 'http://localhost:8081';
 const configured = Boolean(databaseUrl && audience && process.env.AUTH0_ISSUER_BASE_URL);
 const connection = databaseUrl ? new URL(databaseUrl) : null;
 const isTigerCloud = connection?.hostname.endsWith('.tsdb.cloud.timescale.com');
@@ -18,13 +20,18 @@ const pool = connection ? new pg.Pool({
   connectionTimeoutMillis: 5000,
 }) : null;
 const jwks = configured ? createRemoteJWKSet(new URL('.well-known/jwks.json', issuer)) : null;
-const lessonIds = new Set(['two-sum', 'valid-parentheses', 'longest-substring']);
+const lessonIds = new Set([
+  'two-sum', 'valid-parentheses', 'tree-traversals', 'longest-substring',
+  'merge-sorted-arrays', 'binary-search', 'maximum-subarray', 'three-sum',
+  'trapping-rain-water', 'minimum-window-substring', 'validate-bst',
+  'binary-tree-max-path', 'edit-distance',
+]);
 let schemaPromise;
 
 function send(response, status, data) {
   response.writeHead(status, {
     'Content-Type': 'application/json; charset=utf-8',
-    'Access-Control-Allow-Origin': 'http://localhost:8081',
+    'Access-Control-Allow-Origin': frontendOrigin,
     'Access-Control-Allow-Methods': 'GET, POST, DELETE, OPTIONS',
     'Access-Control-Allow-Headers': 'Authorization, Content-Type',
     'Cache-Control': 'no-store',
@@ -68,15 +75,6 @@ async function readProgress(userSub) {
   return { completedDates: days.rows.map((row) => row.day), completedLessons, xp: completedLessons.length * 20 };
 }
 
-async function bodyJson(request) {
-  let body = '';
-  for await (const chunk of request) {
-    body += chunk;
-    if (body.length > 2048) throw Object.assign(new Error('Request too large'), { status: 413 });
-  }
-  try { return JSON.parse(body); } catch { throw Object.assign(new Error('Invalid JSON'), { status: 400 }); }
-}
-
 async function authenticate(request) {
   const match = /^Bearer (\S+)$/.exec(request.headers.authorization || '');
   if (!match) throw Object.assign(new Error('Sign in required'), { status: 401 });
@@ -87,23 +85,23 @@ async function authenticate(request) {
   } catch { throw Object.assign(new Error('Invalid sign-in token'), { status: 401 }); }
 }
 
-export async function handleProgress(request, response) {
-  if (request.url !== '/progress' && request.url !== '/practice') return false;
+export async function handleProgress(request, response, route = request.url) {
+  if (route !== '/progress' && route !== '/practice') return false;
   if (request.method === 'OPTIONS') { send(response, 204, {}); return true; }
   if (!configured) { send(response, 503, { error: 'Progress sync is not configured' }); return true; }
-  if ((request.url === '/progress' && !['GET', 'DELETE'].includes(request.method)) ||
-      (request.url === '/practice' && request.method !== 'POST')) {
+  if ((route === '/progress' && !['GET', 'DELETE'].includes(request.method)) ||
+      (route === '/practice' && request.method !== 'POST')) {
     send(response, 405, { error: 'Method not allowed' }); return true;
   }
 
   try {
     const userSub = await authenticate(request);
     await ensureSchema();
-    if (request.url === '/progress' && request.method === 'GET') {
+    if (route === '/progress' && request.method === 'GET') {
       send(response, 200, await readProgress(userSub));
       return true;
     }
-    if (request.url === '/progress' && request.method === 'DELETE') {
+    if (route === '/progress' && request.method === 'DELETE') {
       const client = await pool.connect();
       try {
         await client.query('BEGIN');
@@ -116,7 +114,7 @@ export async function handleProgress(request, response) {
       return true;
     }
 
-    const input = await bodyJson(request);
+    const input = await readJsonBody(request, 2048);
     if (!input || typeof input !== 'object') {
       send(response, 400, { error: 'Invalid practice event' });
       return true;

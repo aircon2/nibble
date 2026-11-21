@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 import { colors, fonts } from '@/theme';
 
-const callbackUrl = 'http://localhost:8081/';
+const callbackUrl = typeof window === 'undefined' ? 'http://localhost:8081/' : `${window.location.origin}/`;
 
 export function AccountCard() {
   const { error, isAuthenticated, isLoading, loginWithRedirect, logout, user } = useAuth0();

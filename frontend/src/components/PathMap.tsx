@@ -1,7 +1,7 @@
 import { router } from 'expo-router';
-import { useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
-import Svg, { Circle, Ellipse, G, Line, Path, Rect } from 'react-native-svg';
+import { useEffect, useRef, useState } from 'react';
+import { Animated, Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions, type ScrollViewInstance } from 'react-native';
+import Svg, { Circle, Ellipse, G, Path, Rect } from 'react-native-svg';
 import { lessons } from '@/data/lessons';
 import { colors, fonts } from '@/theme';
 import { Mascot } from './Mascot';
@@ -9,11 +9,40 @@ import { Mascot } from './Mascot';
 export type PathTheme = 'forest' | 'mountain' | 'beach' | 'solid';
 
 const route = 'M 192 47 C 185 98 112 99 101 182 C 83 277 273 280 288 395 C 302 493 112 505 101 610 C 92 699 184 727 196 788';
-const stops = [
-  { x: 101, y: 182, cardX: 151, symbol: '＋' },
-  { x: 288, y: 395, cardX: 20, symbol: '{ }' },
-  { x: 101, y: 610, cardX: 151, symbol: '▣' },
+const SECTION_HEIGHT = 740;
+const stopPattern = [
+  { x: 101, y: 182, cardX: 151 },
+  { x: 288, y: 395, cardX: 20 },
+  { x: 101, y: 610, cardX: 151 },
 ];
+const symbols: Record<string, string> = {
+  'two-sum': '＋', 'valid-parentheses': '{ }', 'tree-traversals': '♧',
+  'longest-substring': '▣', 'merge-sorted-arrays': '↔', 'binary-search': '⌕',
+  'maximum-subarray': '◇', 'three-sum': '＋', 'trapping-rain-water': '☂',
+  'minimum-window-substring': '▣', 'validate-bst': '♧',
+  'binary-tree-max-path': '♧', 'edit-distance': '◇',
+};
+const stops = lessons.map((_, index) => ({
+  ...stopPattern[index % 3],
+  y: stopPattern[index % 3].y + Math.floor(index / 3) * SECTION_HEIGHT,
+}));
+
+function travelPoints(index: number) {
+  const section = Math.floor(index / 3) * SECTION_HEIGHT;
+  if (index % 3 === 0) return [
+    { x: 101, y: 182 + section }, { x: 105, y: 235 + section }, { x: 170, y: 275 + section },
+    { x: 255, y: 330 + section }, { x: 288, y: 395 + section },
+  ];
+  if (index % 3 === 1) return [
+    { x: 288, y: 395 + section }, { x: 280, y: 455 + section }, { x: 210, y: 495 + section },
+    { x: 125, y: 550 + section }, { x: 101, y: 610 + section },
+  ];
+  return [
+    { x: 101, y: 610 + section }, { x: 105, y: 680 + section }, { x: 160, y: 740 + section },
+    { x: 196, y: 788 + section }, { x: 185, y: 838 + section }, { x: 115, y: 875 + section },
+    { x: 101, y: 922 + section },
+  ];
+}
 
 const palette = {
   forest: { base: '#DFEBD8', road: '#F7E8CB', border: '#D8C9A7', ink: '#355B4D' },
@@ -79,30 +108,84 @@ function Scenery({ theme }: { theme: PathTheme }) {
   </>;
 }
 
-export function PathMap({ theme, completedLessons }: { theme: PathTheme; completedLessons: string[] }) {
+export function PathMap({ theme, completedLessons, animateFrom }: {
+  theme: PathTheme;
+  completedLessons: string[];
+  animateFrom?: string;
+}) {
   const [width, setWidth] = useState(342);
+  const [travel] = useState(() => new Animated.Value(0));
+  const mapScroll = useRef<ScrollViewInstance>(null);
+  const measuredWidth = useRef(342);
+  const positionTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const { height: screenHeight } = useWindowDimensions();
+  const [travelDone, setTravelDone] = useState(false);
   const scale = width / 390;
   const paint = palette[theme];
-  const nextIndex = lessons.findIndex((lesson) => !completedLessons.includes(lesson.id));
+  const journeyLessons = [
+    ...completedLessons.map((id) => lessons.find((lesson) => lesson.id === id)).filter((lesson): lesson is (typeof lessons)[number] => Boolean(lesson)),
+    ...lessons.filter((lesson) => !completedLessons.includes(lesson.id)),
+  ];
+  const completedCount = journeyLessons.filter((lesson) => completedLessons.includes(lesson.id)).length;
+  const currentIndex = Math.min(completedCount, lessons.length - 1);
+  const mascotStop = completedCount === 0 ? { x: 192, y: 47 } : stops[currentIndex];
+  const visibleCount = Math.min(lessons.length, Math.max(3, completedCount + 3));
+  const sectionCount = Math.ceil(visibleCount / 3);
+  const mapHeight = 810 + SECTION_HEIGHT * (sectionCount - 1);
+  const fromIndex = journeyLessons.findIndex((lesson) => lesson.id === animateFrom);
+  const shouldTravel = fromIndex === completedCount - 1 && completedCount < lessons.length && completedLessons.includes(animateFrom ?? '');
+  const points = shouldTravel ? travelPoints(fromIndex) : null;
+  const windowHeight = Math.max(580, Math.min(720, screenHeight * 0.82));
+  const positionAtCurrentStop = (nextWidth: number) => {
+    if (positionTimer.current) clearTimeout(positionTimer.current);
+    const stopY = shouldTravel ? stops[fromIndex].y : mascotStop.y;
+    positionTimer.current = setTimeout(() => mapScroll.current?.scrollTo({ y: Math.max(0, (stopY - 150) * nextWidth / 390), animated: false }), 180);
+  };
 
-  return <View onLayout={(event) => setWidth(event.nativeEvent.layout.width)} style={[styles.map, { height: 810 * scale, backgroundColor: paint.base }]}>
-    <Svg width="100%" height="100%" viewBox="0 0 390 810" style={StyleSheet.absoluteFill}>
-      <Scenery theme={theme} />
-      <Path d={route} stroke={paint.border} strokeWidth={43} strokeLinecap="round" fill="none" />
-      <Path d={route} stroke={paint.road} strokeWidth={35} strokeLinecap="round" fill="none" />
-      <Path d={route} stroke="#FFFFFF" strokeWidth={2} strokeDasharray="5 13" strokeLinecap="round" fill="none" opacity={0.8} />
-      <Circle cx={196} cy={780} r={24} fill={paint.road} stroke={paint.border} strokeWidth={5} />
-      <Path d="M196 765 L200 775 L211 775 L202 781 L205 791 L196 785 L187 791 L190 781 L181 775 L192 775 Z" fill="#D7AD64" />
-      <Line x1={190} y1={82} x2={173} y2={102} stroke={paint.ink} strokeWidth={2} />
+  useEffect(() => {
+    if (!shouldTravel) return;
+    const travelTimer = setTimeout(() => {
+      Animated.timing(travel, { toValue: 1, duration: 1600, useNativeDriver: false }).start(({ finished }) => {
+        if (finished) {
+          setTravelDone(true);
+          mapScroll.current?.scrollTo({ y: Math.max(0, (mascotStop.y - 150) * scale), animated: true });
+        }
+      });
+    }, 650);
+    return () => { clearTimeout(travelTimer); travel.stopAnimation(); };
+  }, [shouldTravel, travel, scale, mascotStop.y, fromIndex]);
+
+  const mascotLeft = points && !travelDone
+    ? travel.interpolate({ inputRange: points.map((_, index) => index / (points.length - 1)), outputRange: points.map((point) => (point.x - 44) * scale) })
+    : (mascotStop.x - 44) * scale;
+  const mascotTop = points && !travelDone
+    ? travel.interpolate({ inputRange: points.map((_, index) => index / (points.length - 1)), outputRange: points.map((point) => (point.y - 75) * scale) })
+    : completedCount === 0 ? 0 : (mascotStop.y - 75) * scale;
+
+  return <ScrollView ref={mapScroll} nestedScrollEnabled directionalLockEnabled scrollEventThrottle={16} showsVerticalScrollIndicator={false} onLayout={(event) => {
+    measuredWidth.current = event.nativeEvent.layout.width;
+    setWidth(measuredWidth.current);
+    positionAtCurrentStop(measuredWidth.current);
+  }} onContentSizeChange={() => positionAtCurrentStop(measuredWidth.current)} style={[styles.map, { height: windowHeight, backgroundColor: paint.base }]} contentContainerStyle={{ height: mapHeight * scale }}>
+    <View style={{ width: '100%', height: mapHeight * scale }}>
+    <Svg width="100%" height="100%" viewBox={`0 0 390 ${mapHeight}`} style={StyleSheet.absoluteFill}>
+      {Array.from({ length: sectionCount }, (_, section) => <G key={section} transform={`translate(0 ${section * SECTION_HEIGHT})`}>
+        <Scenery theme={theme} />
+        <Path d={route} stroke={paint.border} strokeWidth={43} strokeLinecap="round" fill="none" />
+        <Path d={route} stroke={paint.road} strokeWidth={35} strokeLinecap="round" fill="none" />
+        <Path d={route} stroke="#FFFFFF" strokeWidth={2} strokeDasharray="5 13" strokeLinecap="round" fill="none" opacity={0.8} />
+      </G>)}
+      <Circle cx={196} cy={mapHeight - 30} r={24} fill={paint.road} stroke={paint.border} strokeWidth={5} />
+      <Path d={`M196 ${mapHeight - 45} L200 ${mapHeight - 35} L211 ${mapHeight - 35} L202 ${mapHeight - 29} L205 ${mapHeight - 19} L196 ${mapHeight - 25} L187 ${mapHeight - 19} L190 ${mapHeight - 29} L181 ${mapHeight - 35} L192 ${mapHeight - 35} Z`} fill="#D7AD64" />
     </Svg>
 
-    <View style={[styles.startMascot, { left: 148 * scale, top: 19 * scale }]}><Mascot size={55 * scale} waveOnPress /></View>
-    <View style={[styles.startSign, { left: 211 * scale, top: 35 * scale }]}><Text style={[styles.signText, { color: paint.ink }]}>START</Text></View>
+    <Animated.View style={[styles.startMascot, { left: mascotLeft, top: mascotTop }]}><Mascot size={66 * scale} waveOnPress /></Animated.View>
+    {completedCount === 0 && <View style={[styles.startSign, { left: 211 * scale, top: 35 * scale }]}><Text style={[styles.signText, { color: paint.ink }]}>START</Text></View>}
 
-    {lessons.map((lesson, index) => {
+    {journeyLessons.slice(0, visibleCount).map((lesson, index) => {
       const stop = stops[index];
       const done = completedLessons.includes(lesson.id);
-      const current = index === (nextIndex < 0 ? lessons.length - 1 : nextIndex);
+      const current = index === currentIndex;
       const origin = stop.cardX === 20 ? 18 : 66;
       return <Pressable
         key={lesson.id}
@@ -112,7 +195,7 @@ export function PathMap({ theme, completedLessons }: { theme: PathTheme; complet
         style={[styles.stopArea, { top: (stop.y - 51) * scale, left: origin * scale, width: 310 * scale, height: 108 * scale }]}
       >
         <View style={[styles.marker, { left: (stop.x - origin - 34) * scale, top: 17 * scale, width: 68 * scale, height: 68 * scale, borderRadius: 34 * scale, backgroundColor: done ? colors.green : colors.white, borderColor: current ? '#D3985D' : paint.ink, borderWidth: current ? 4 : 3 }]}>
-          <Text style={[styles.markerSymbol, { color: done ? colors.white : paint.ink, fontSize: (index === 1 ? 22 : 31) * scale }]}>{done ? '✓' : stop.symbol}</Text>
+          <Text style={[styles.markerSymbol, { color: done ? colors.white : paint.ink, fontSize: (index === 1 ? 22 : 31) * scale }]}>{done ? '✓' : symbols[lesson.id] ?? '◆'}</Text>
         </View>
         <View style={[styles.lessonCard, { left: (stop.cardX - origin) * scale, width: 215 * scale, borderColor: current ? '#D3985D' : '#FFFFFF' }]}>
           <Text style={[styles.cardKicker, { color: paint.ink }]}>{done ? 'COMPLETED' : current ? 'UP NEXT' : `LESSON ${lesson.number}`}</Text>
@@ -122,13 +205,14 @@ export function PathMap({ theme, completedLessons }: { theme: PathTheme; complet
         </View>
       </Pressable>;
     })}
-    <View style={[styles.finishLabel, { top: 775 * scale, left: 222 * scale }]}><Text style={[styles.finishText, { color: paint.ink }]}>KEEP GOING!</Text></View>
-  </View>;
+    <View style={[styles.finishLabel, { top: (mapHeight - 35) * scale, left: 222 * scale }]}><Text style={[styles.finishText, { color: paint.ink }]}>KEEP GOING!</Text></View>
+    </View>
+  </ScrollView>;
 }
 
 const styles = StyleSheet.create({
   map: { width: '100%', marginTop: 20, borderRadius: 28, overflow: 'hidden', borderWidth: 1, borderColor: colors.line },
-  startMascot: { position: 'absolute' },
+  startMascot: { position: 'absolute', zIndex: 2 },
   startSign: { position: 'absolute', paddingHorizontal: 9, paddingVertical: 5, borderRadius: 9, backgroundColor: colors.white, borderWidth: 1, borderColor: colors.line },
   signText: { fontFamily: fonts.bold, fontSize: 10, letterSpacing: 0.5 },
   stopArea: { position: 'absolute' },

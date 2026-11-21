@@ -1,5 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useEffect, useState } from 'react';
+import { useLocalSearchParams } from 'expo-router';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { BottomNav } from '@/components/BottomNav';
 import { PathMap, type PathTheme } from '@/components/PathMap';
@@ -17,7 +18,8 @@ const themes: { id: PathTheme; label: string; color: string }[] = [
 ];
 
 export default function PathScreen() {
-  const { completedLessons } = useProgress();
+  const { animateFrom } = useLocalSearchParams<{ animateFrom?: string }>();
+  const { completedLessons, ready } = useProgress();
   const [theme, setTheme] = useState<PathTheme>('forest');
 
   useEffect(() => {
@@ -39,7 +41,7 @@ export default function PathScreen() {
       </View>
       <Text style={styles.eyebrow}>YOUR LEARNING JOURNEY</Text>
       <Text style={styles.title}>Follow the trail.</Text>
-      <Text style={styles.copy}>Three real interview problems. One small step at a time.</Text>
+      <Text style={styles.copy}>Real interview problems. One small step at a time. Nibble moves forward as you complete each lesson.</Text>
 
       <Text style={styles.themeLabel}>CHOOSE YOUR SCENERY</Text>
       <View style={styles.themeRow} accessibilityRole="radiogroup" accessibilityLabel="Map background">
@@ -56,8 +58,8 @@ export default function PathScreen() {
         </Pressable>)}
       </View>
 
-      <PathMap theme={theme} completedLessons={completedLessons} />
-      <Text style={styles.footerNote}>Tap any stop to practice. Revisit lessons whenever you like.</Text>
+      {ready && <PathMap theme={theme} completedLessons={completedLessons} animateFrom={animateFrom} />}
+      <Text style={styles.footerNote}>Drag inside the map to revisit completed lessons.</Text>
     </Screen>
   );
 }
